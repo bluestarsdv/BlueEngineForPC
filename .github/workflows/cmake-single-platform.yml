@@ -34,30 +34,55 @@ jobs:
 
     - name: Generate system.img (FAT File System)
       run: |
-        # Cria a imagem zerada de 10MB
+        # 1. Cria a imagem zerada de 10MB
         dd if=/dev/zero of=build/system.img bs=1M count=10
         
-        # Formata como FAT16
+        # 2. Formata a imagem como FAT16 com o rótulo SYSTEM
         mkfs.vfat -F 16 -n "SYSTEM" build/system.img
         
-        # Copia a estrutura de sysroot se existir
+        # 3. Copia a estrutura de sysroot se existir no repositório
         if [ -d "sysroot" ]; then
           mcopy -i build/system.img -s sysroot/* ::/
         fi
 
-        # Cria explicitamente o diretório /dev dentro da imagem
+        # 4. Cria a pasta /dev na raiz da system.img
         mmd -i build/system.img ::/dev
+
+        # 5. Cria os arquivos marcadores de dispositivos dentro de /dev
+        # (O Kernel utilizará estes pontos de montagem para abstração dos drivers)
+        
+        # Pseudo-dispositivos básicos
+        mcopy -i build/system.img /dev/null ::/dev/null 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/null
+        mcopy -i build/system.img /dev/null ::/dev/zero 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/zero
+        mcopy -i build/system.img /dev/null ::/dev/full 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/full
+        mcopy -i build/system.img /dev/null ::/dev/random 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/random
+        mcopy -i build/system.img /dev/null ::/dev/urandom 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/urandom
+
+        # Console e Framebuffer de Vídeo
+        mcopy -i build/system.img /dev/null ::/dev/console 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/console
+        mcopy -i build/system.img /dev/null ::/dev/tty 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/tty
+        mcopy -i build/system.img /dev/null ::/dev/fb0 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/fb0
+
+        # Dispositivos de Armazenamento
+        mcopy -i build/system.img /dev/null ::/dev/sda 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/sda
+        mcopy -i build/system.img /dev/null ::/dev/sda1 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/sda1
+        mcopy -i build/system.img /dev/null ::/dev/fd0 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/fd0
+
+        # Redirecionamentos padrão (stdin, stdout, stderr)
+        mcopy -i build/system.img /dev/null ::/dev/stdin 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/stdin
+        mcopy -i build/system.img /dev/null ::/dev/stdout 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/stdout
+        mcopy -i build/system.img /dev/null ::/dev/stderr 2>/dev/null || echo -n "" | mcopy -i build/system.img - ::/dev/stderr
 
     - name: Generate ISO Image (blue_engine.iso)
       run: |
-        # Prepara a estrutura do diretório da ISO
+        # Prepara a pasta temporária para criar a ISO
         mkdir -p build/iso_root
         
-        # Copia as duas imagens para o diretório da ISO
+        # Copia boot.img e system.img para dentro do diretório raiz da ISO
         cp build/boot.img build/iso_root/boot.img
         cp build/system.img build/iso_root/system.img
         
-        # Cria a ISO bootável combinando boot.img e system.img
+        # Empacota tudo em blue_engine.iso com boot El Torito
         xorriso -as mkisofs \
           -b boot.img \
           -no-emul-boot \
