@@ -11,7 +11,14 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
-void wizard_print(int row, int col, const char* str, uint8_t color) {
+static const char scancode_map[128] = {
+    0,  27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
+  '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
+    0,  'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',   0,
+  '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',   0, '*',   0, ' '
+};
+
+static void wizard_print(int row, int col, const char* str, uint8_t color) {
     if (!str) return;
     volatile uint16_t* vga = (volatile uint16_t*)VGA_ADDRESS;
     int index = (row * SCREEN_WIDTH) + col;
@@ -23,21 +30,14 @@ void wizard_print(int row, int col, const char* str, uint8_t color) {
     }
 }
 
-void wizard_clear(uint8_t bg_color) {
+static void wizard_clear(uint8_t bg_color) {
     volatile uint16_t* vga = (volatile uint16_t*)VGA_ADDRESS;
     for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; ++i) {
         vga[i] = (uint16_t)' ' | ((uint16_t)bg_color << 8);
     }
 }
 
-static const char scancode_map[128] = {
-    0,  27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
-  '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
-    0,  'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',   0,
-  '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',   0, '*',   0, ' '
-};
-
-void read_input_field(int row, int col, char* buffer, int max_len, uint8_t is_password) {
+static void read_input_field(int row, int col, char* buffer, int max_len, uint8_t is_password) {
     int pos = 0;
     buffer[0] = '\0';
 
@@ -70,7 +70,7 @@ void read_input_field(int row, int col, char* buffer, int max_len, uint8_t is_pa
     }
 }
 
-void save_user_config(const char* username, const char* nickname, const char* password) {
+static void save_user_config(const char* username, const char* nickname, const char* password) {
     char buffer[256];
     int len = 0;
 
@@ -90,10 +90,11 @@ void save_user_config(const char* username, const char* nickname, const char* pa
     while (*footer) buffer[len++] = *footer++;
     buffer[len] = '\0';
 
+    // Gravação no VFS em /data/config/user.cfg
     // vfs_write_file(USER_CONFIG_PATH, buffer, len);
 }
 
-void wait_for_finish_button(void) {
+static void wait_for_finish_button(void) {
     wizard_print(14, 27, " [  TERMINEI!  ] ", 0xE0);
     wizard_print(16, 17, "Pressione ENTER no botao para confirmar", 0x1F);
 
@@ -107,7 +108,8 @@ void wait_for_finish_button(void) {
     }
 }
 
-void run_setup_wizard(void) {
+// Garante que o símbolo run_setup_wizard exista no binário final
+__attribute__((used)) void run_setup_wizard(void) {
     char username[32] = {0};
     char nickname[32] = {0};
     char password[32] = {0};
