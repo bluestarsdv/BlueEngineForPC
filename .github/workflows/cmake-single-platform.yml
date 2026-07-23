@@ -14,10 +14,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install NASM and Multilib Toolchain
+    - name: Install NASM and Build Tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y nasm gcc-multilib
+        sudo apt-get install -y nasm gcc-multilib dosfstools mtools
 
     - name: Configure CMake
       run: |
@@ -32,12 +32,18 @@ jobs:
         dd if=/dev/zero of=build/boot.img bs=1024 count=1440
         dd if=build/blue_game_engine of=build/boot.img conv=notrunc
 
-    - name: Generate system.img (sysroot)
+    - name: Generate system.img (FAT File System)
       run: |
-        dd if=/dev/zero of=build/system.img bs=1024 count=2880
-        # Copia a estrutura de sysroot para o workspace/build se necessário
-        mkdir -p build/sysroot_temp
-        cp -r sysroot/* build/sysroot_temp/ 2>/dev/null || true
+        # Cria uma imagem zerada de 10MB para o sistema
+        dd if=/dev/zero of=build/system.img bs=1M count=10
+        
+        # Formata a imagem como FAT16 com o rótulo SYSTEM
+        mkfs.vfat -F 16 -n "SYSTEM" build/system.img
+        
+        # Copia todo o conteúdo da pasta sysroot/ para a raiz do arquivo system.img
+        if [ -d "sysroot" ]; then
+          mcopy -i build/system.img -s sysroot/* ::/
+        fi
 
     - name: Upload Boot Image Artifact (boot.img)
       uses: actions/upload-artifact@v4
@@ -49,7 +55,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: system-image
-        path: |
-          build/system.img
-          sysroot/
-          
+        path: build/system.img
+        
