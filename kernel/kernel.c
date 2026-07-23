@@ -5,23 +5,6 @@
 #define SCREEN_HEIGHT 25
 #define USER_CONFIG_PATH "/data/config/user.cfg"
 
-/* ===================================================================
-   DRIVERS DE E/S E VFS INTERNOS
-   =================================================================== */
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
-
-static const char scancode_map[128] = {
-    0,  27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
-  '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
-    0,  'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',   0,
-  '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/',   0, '*',   0, ' '
-};
-
 static void clear_screen(uint8_t bg_color) {
     volatile uint16_t* vga_buffer = (volatile uint16_t*)VGA_ADDRESS;
     for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; ++i) {
@@ -43,129 +26,21 @@ static void print_text(int row, int col, const char* str, uint8_t color) {
 }
 
 static int vfs_file_exists(const char* path) {
-    // Retorna 0 até o arquivo ser gravado no sistema
     return 0;
 }
-
-/* ===================================================================
-   LÓGICA INTERNA DO SETUP WIZARD
-   =================================================================== */
-
-static void read_input_field(int row, int col, char* buffer, int max_len, uint8_t is_password) {
-    int pos = 0;
-    buffer[0] = '\0';
-
-    while (1) {
-        if (inb(0x64) & 1) {
-            uint8_t scancode = inb(0x60);
-            if (!(scancode & 0x80)) {
-                char ch = scancode_map[scancode];
-
-                if (ch == '\n') {
-                    break;
-                } else if (ch == '\b' && pos > 0) {
-                    pos--;
-                    buffer[pos] = '\0';
-                    print_text(row, col + pos, " ", 0x1F);
-                } else if (ch >= 32 && ch <= 126 && pos < max_len - 1) {
-                    buffer[pos] = ch;
-                    pos++;
-                    buffer[pos] = '\0';
-
-                    if (is_password) {
-                        print_text(row, col + pos - 1, "*", 0x1E);
-                    } else {
-                        char temp[2] = {ch, '\0'};
-                        print_text(row, col + pos - 1, temp, 0x1F);
-                    }
-                }
-            }
-        }
-    }
-}
-
-static void save_user_config(const char* username, const char* nickname, const char* password) {
-    char buffer[256];
-    int len = 0;
-
-    const char* header = "[user]\nusername=";
-    while (*header) buffer[len++] = *header++;
-    while (*username) buffer[len++] = *username++;
-
-    const char* nick_key = "\nnickname=";
-    while (*nick_key) buffer[len++] = *nick_key++;
-    while (*nickname) buffer[len++] = *nickname++;
-
-    const char* pass_key = "\npassword=";
-    while (*pass_key) buffer[len++] = *pass_key++;
-    while (*password) buffer[len++] = *password++;
-
-    const char* footer = "\nfirst_boot_completed=true\n";
-    while (*footer) buffer[len++] = *footer++;
-    buffer[len] = '\0';
-
-    // Dispara a gravação em /data/config/user.cfg
-    // vfs_write_file(USER_CONFIG_PATH, buffer, len);
-}
-
-static void wait_for_finish_button(void) {
-    print_text(14, 27, " [  TERMINEI!  ] ", 0xE0);
-    print_text(16, 17, "Pressione ENTER no botao para confirmar", 0x1F);
-
-    while (1) {
-        if (inb(0x64) & 1) {
-            uint8_t scancode = inb(0x60);
-            if (!(scancode & 0x80)) {
-                if (scancode_map[scancode] == '\n') break;
-            }
-        }
-    }
-}
-
-static void run_setup_wizard(void) {
-    char username[32] = {0};
-    char nickname[32] = {0};
-    char password[32] = {0};
-
-    clear_screen(0x10);
-
-    print_text(1, 25, "=== BLUE OS SETUP WIZARD ===", 0x1E);
-    print_text(3, 5, "Configuracao Inicial do Sistema:", 0x1F);
-
-    print_text(6, 5, "Nome de Usuario: ", 0x1F);
-    read_input_field(6, 22, username, 30, 0);
-
-    print_text(8, 5, "Apelido (Nickname): ", 0x1F);
-    read_input_field(8, 25, nickname, 30, 0);
-
-    print_text(10, 5, "Senha de Acesso: ", 0x1F);
-    read_input_field(10, 22, password, 30, 1);
-
-    wait_for_finish_button();
-
-    save_user_config(username, nickname, password);
-
-    clear_screen(0x10);
-    print_text(8, 22, "Conta criada com sucesso!", 0x1A);
-    print_text(10, 20, "Carregando o Blue Game Engine...", 0x1E);
-}
-
-/* ===================================================================
-   PONTO DE ENTRADA DO KERNEL
-   =================================================================== */
 
 void kernel_main(void) {
     clear_screen(0x07);
 
-    // Se o arquivo de usuário não existir na raiz, executa o setup interno imediatamente
+    // Se o arquivo não existe, salta direto via Assembly para a função do setupwizard.c
     if (!vfs_file_exists(USER_CONFIG_PATH)) {
-        run_setup_wizard();
+        __asm__ volatile ("call run_setup_wizard");
     }
 
-    // Tela pós-configuração do sistema
+    // Tela normal do sistema após o término do wizard
     clear_screen(0x07);
-    print_text(2, 2, "Blue Game Engine", 0x0B);
-    print_text(4, 2, "Bem-vindo ao Blue Game Engine!", 0x0E);
+    print_text(2, 2, "Blue OS - Sistema Carregado", 0x0B);
+    print_text(4, 2, "Bem-vindo ao sistema!", 0x0E);
 
     while (1) {
         __asm__ volatile("hlt");
