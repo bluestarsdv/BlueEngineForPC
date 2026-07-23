@@ -34,23 +34,30 @@ jobs:
 
     - name: Generate system.img (FAT File System)
       run: |
+        # Cria a imagem zerada de 10MB
         dd if=/dev/zero of=build/system.img bs=1M count=10
+        
+        # Formata como FAT16
         mkfs.vfat -F 16 -n "SYSTEM" build/system.img
         
+        # Copia a estrutura de sysroot se existir
         if [ -d "sysroot" ]; then
           mcopy -i build/system.img -s sysroot/* ::/
         fi
+
+        # Cria explicitamente o diretório /dev dentro da imagem
+        mmd -i build/system.img ::/dev
 
     - name: Generate ISO Image (blue_engine.iso)
       run: |
         # Prepara a estrutura do diretório da ISO
         mkdir -p build/iso_root
         
-        # Copia as imagens geradas para dentro da estrutura da ISO
+        # Copia as duas imagens para o diretório da ISO
         cp build/boot.img build/iso_root/boot.img
         cp build/system.img build/iso_root/system.img
         
-        # Gera a ISO bootável combinando as duas imagens
+        # Cria a ISO bootável combinando boot.img e system.img
         xorriso -as mkisofs \
           -b boot.img \
           -no-emul-boot \
