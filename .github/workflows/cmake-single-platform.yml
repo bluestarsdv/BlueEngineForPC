@@ -1,23 +1,55 @@
-name: CMake Build
+name: Build BlueEngine
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-    # INSTALA O NASM AQUI ANTES DO CMAKE
-    - name: Install NASM
+    - name: Install NASM and Multilib Toolchain
       run: |
         sudo apt-get update
         sudo apt-get install -y nasm gcc-multilib
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=Release
+      run: |
+        rm -rf build
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_ASM_NASM_OBJECT_FORMAT=elf32
 
-    - name: Build Project
-      run: cmake --build ${{github.workspace}}/build --config Release
-      
+    - name: Build Kernel
+      run: cmake --build build --config Release
+
+    - name: Generate boot.img
+      run: |
+        dd if=/dev/zero of=build/boot.img bs=1024 count=1440
+        dd if=build/blue_game_engine of=build/boot.img conv=notrunc
+
+    - name: Generate system.img (sysroot)
+      run: |
+        dd if=/dev/zero of=build/system.img bs=1024 count=2880
+        # Copia a estrutura de sysroot para o workspace/build se necessário
+        mkdir -p build/sysroot_temp
+        cp -r sysroot/* build/sysroot_temp/ 2>/dev/null || true
+
+    - name: Upload Boot Image Artifact (boot.img)
+      uses: actions/upload-artifact@v4
+      with:
+        name: boot-image
+        path: build/boot.img
+
+    - name: Upload System Image Artifact (system.img)
+      uses: actions/upload-artifact@v4
+      with:
+        name: system-image
+        path: |
+          build/system.img
+          sysroot/
+          
