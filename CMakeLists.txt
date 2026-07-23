@@ -1,16 +1,14 @@
 cmake_minimum_required(VERSION 3.20)
 project(BlueGameEngine LANGUAGES C ASM_NASM)
 
-# Permite incluir cabeçalhos do kernel e do sysroot
 include_directories(kernel sysroot/system)
 
-# Flags para compilação bare-metal em 32-bits
+# Flags do C para bare-metal 32-bit
 set(CMAKE_C_FLAGS "-m32 -ffreestanding -O2 -Wall -Wextra -nostdlib")
 
-# Configuração do NASM
-set_property(SOURCE kernel/boot.asm PROPERTY COMPILE_FLAGS "-f elf32")
+# Força o NASM a gerar o arquivo objeto em 32-bit (elf32)
+set(CMAKE_ASM_NASM_FLAGS "-f elf32")
 
-# Executável do sistema compilando os arquivos dos seus respectivos locais
 add_executable(blue_game_engine
     kernel/boot.asm
     kernel/kernel.c
@@ -21,5 +19,5 @@ add_executable(blue_game_engine
     kernel/process_manager.c
 )
 
-# Configuração do Linker
+# Força o linker a compilar em i386
 set_target_properties(blue_game_engine PROPERTIES LINK_FLAGS "-m32 -nostdlib")
