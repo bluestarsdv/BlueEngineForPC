@@ -1,4 +1,4 @@
-name: Build BlueEngine
+name: Build BlueEngine ISO
 
 on:
   push:
@@ -14,10 +14,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install NASM and Build Tools
+    - name: Install NASM, Build Tools and ISO Maker
       run: |
         sudo apt-get update
-        sudo apt-get install -y nasm gcc-multilib dosfstools mtools
+        sudo apt-get install -y nasm gcc-multilib dosfstools mtools xorriso
 
     - name: Configure CMake
       run: |
@@ -34,26 +34,34 @@ jobs:
 
     - name: Generate system.img (FAT File System)
       run: |
-        # Cria uma imagem zerada de 10MB para o sistema
         dd if=/dev/zero of=build/system.img bs=1M count=10
-        
-        # Formata a imagem como FAT16 com o rótulo SYSTEM
         mkfs.vfat -F 16 -n "SYSTEM" build/system.img
         
-        # Copia todo o conteúdo da pasta sysroot/ para a raiz do arquivo system.img
         if [ -d "sysroot" ]; then
           mcopy -i build/system.img -s sysroot/* ::/
         fi
 
-    - name: Upload Boot Image Artifact (boot.img)
-      uses: actions/upload-artifact@v4
-      with:
-        name: boot-image
-        path: build/boot.img
+    - name: Generate ISO Image (blue_engine.iso)
+      run: |
+        # Prepara a estrutura do diretório da ISO
+        mkdir -p build/iso_root
+        
+        # Copia as imagens geradas para dentro da estrutura da ISO
+        cp build/boot.img build/iso_root/boot.img
+        cp build/system.img build/iso_root/system.img
+        
+        # Gera a ISO bootável combinando as duas imagens
+        xorriso -as mkisofs \
+          -b boot.img \
+          -no-emul-boot \
+          -boot-load-size 4 \
+          -boot-info-table \
+          -o build/blue_engine.iso \
+          build/iso_root
 
-    - name: Upload System Image Artifact (system.img)
+    - name: Upload Single ISO Artifact (blue_engine.iso)
       uses: actions/upload-artifact@v4
       with:
-        name: system-image
-        path: build/system.img
+        name: blue-engine-iso
+        path: build/blue_engine.iso
         
