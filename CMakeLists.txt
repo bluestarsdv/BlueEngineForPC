@@ -3,13 +3,13 @@ project(BlueGameEngine LANGUAGES C ASM_NASM)
 
 include_directories(kernel)
 
-# Flags do C para bare-metal em 32-bits
+# 1. Força o NASM a compilar SEMPRE em ELF 32-bit
+set(CMAKE_ASM_NASM_FLAGS "-f elf32")
+
+# 2. Flags do C para bare-metal em 32-bits (x86)
 set(CMAKE_C_FLAGS "-m32 -ffreestanding -O2 -Wall -Wextra -nostdlib")
 
-# Força o NASM a gerar ELF 32-bit explicitamente no boot.asm
-set_source_files_properties(kernel/boot.asm PROPERTIES COMPILE_FLAGS "-f elf32")
-
-# Binário principal do KERNEL (vai para a boot.img)
+# 3. Apenas os arquivos do KERNEL (vão para a boot.img)
 add_executable(blue_game_engine
     kernel/boot.asm
     kernel/kernel.c
@@ -19,5 +19,5 @@ add_executable(blue_game_engine
     kernel/process_manager.c
 )
 
-# Força o linker a trabalhar em x86 (i386)
+# 4. Força o Linker a conectar tudo em i386 (32-bit)
 set_target_properties(blue_game_engine PROPERTIES LINK_FLAGS "-m32 -nostdlib")
