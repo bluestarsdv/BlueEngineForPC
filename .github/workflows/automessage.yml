@@ -1,0 +1,15 @@
+name: Create Auto Message
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  comentar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Criar um comentário automático
+        uses: peter-evans/create-issue-from-file@v5 # Exemplo de action
+        with:
+          title: "Oi Usuário"
+          body: "Obrigado por abrir uma issue, diga o problema e a nossa equipe resolve."
