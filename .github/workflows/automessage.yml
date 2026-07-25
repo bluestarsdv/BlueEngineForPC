@@ -1,4 +1,4 @@
-name: Create Auto Message
+name: Automatizar Comentário em Issue
 
 on:
   issues:
@@ -8,8 +8,13 @@ jobs:
   comentar:
     runs-on: ubuntu-latest
     steps:
+      - name: Baixar o código do repositório
+        uses: actions/checkout@v4
+
       - name: Criar um comentário automático
-        uses: peter-evans/create-issue-from-file@v5 # Exemplo de action
+        uses: peter-evans/create-issue-from-file@v5
         with:
-          title: "Oi Usuário"
-          body: "Obrigado por abrir uma issue, diga o problema e a nossa equipe resolve."
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Boas-vindas!"
+          content-filepath: ".github/ISSUE_TEMPLATE/mensagem.md"
+          
