@@ -7,6 +7,8 @@ on:
 jobs:
   comentar:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Baixar o código do repositório
         uses: actions/checkout@v4
