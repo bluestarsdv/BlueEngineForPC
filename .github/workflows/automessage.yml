@@ -7,7 +7,7 @@ on:
     types: [created]
 
 jobs:
-  comentar_e_fechar:
+  comentar_e_gerenciar:
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -22,6 +22,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.issue.number }}
           body-path: ".github/ISSUE_TEMPLATE/mensagem.md"
+
+      - name: Ramificar issue se solicitado
+        if: github.event_name == 'issue_comment' && github.event.comment.body == 'ramificar issue'
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Ramificação da Issue #${{ github.event.issue.number }}"
+          content-filepath: ".github/ISSUE_TEMPLATE/mensagem.md"
 
       - name: Fechar a issue se solicitado
         if: github.event_name == 'issue_comment' && github.event.comment.body == 'close issue'
