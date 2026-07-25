@@ -13,10 +13,10 @@ jobs:
       - name: Baixar o código do repositório
         uses: actions/checkout@v4
 
-      - name: Criar um comentário automático
-        uses: peter-evans/create-issue-from-file@v5
+      - name: Comentar na issue automaticamente
+        uses: peter-evans/create-or-update-comment@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          title: "Boas-vindas!"
-          content-filepath: ".github/ISSUE_TEMPLATE/mensagem.md"
+          issue-number: ${{ github.event.issue.number }}
+          body-path: ".github/ISSUE_TEMPLATE/mensagem.md"
           
