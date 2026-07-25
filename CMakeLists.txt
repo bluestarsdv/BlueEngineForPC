@@ -17,6 +17,7 @@ add_executable(blue_game_engine
     kernel/kernel.c
     kernel/elf_loader.c
     kernel/exe_loader.c
+    kernel/panic.c
     kernel/config_reader.c
     kernel/process_manager.c
 )
