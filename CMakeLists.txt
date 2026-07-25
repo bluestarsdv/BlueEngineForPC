@@ -1,17 +1,10 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.10)
+project(BlueGameEngine C ASM_NASM)
 
-# Define o formato de saída do NASM como elf32 antes de inicializar o projeto
-set(CMAKE_ASM_NASM_OBJECT_FORMAT "elf32")
-set(CMAKE_ASM_NASM_FLAGS "-f elf32")
+# 1. Informa ao compilador para buscar cabeçalhos na pasta include/ e kernel/
+include_directories(include kernel)
 
-project(BlueGameEngine LANGUAGES C ASM_NASM)
-
-include_directories(kernel)
-
-# Flags do C para bare-metal em 32-bits (x86)
-set(CMAKE_C_FLAGS "-m32 -ffreestanding -O2 -Wall -Wextra -nostdlib")
-
-# Executável do Kernel (boot.img)
+# 2. Definição do executável do Kernel
 add_executable(blue_game_engine
     kernel/boot.asm
     kernel/kernel.c
@@ -22,5 +15,5 @@ add_executable(blue_game_engine
     kernel/process_manager.c
 )
 
-# Força o Linker a conectar em i386
-set_target_properties(blue_game_engine PROPERTIES LINK_FLAGS "-m32 -nostdlib")
+# Se você preferir usar a sintaxe moderna por alvo (target), em vez de include_directories:
+# target_include_directories(blue_game_engine PRIVATE include kernel)
