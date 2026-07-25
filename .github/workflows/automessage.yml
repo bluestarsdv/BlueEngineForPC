@@ -1,6 +1,8 @@
 name: Gerenciador de Comandos da Issue
 
 on:
+  issues:
+    types: [opened]
   issue_comment:
     types: [created]
 
@@ -14,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Comentar na issue automaticamente
-        if: github.event.comment.body != 'close issue'
+        if: github.event_name == 'issues' && github.event.action == 'opened'
         uses: peter-evans/create-or-update-comment@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -22,7 +24,7 @@ jobs:
           body-path: ".github/ISSUE_TEMPLATE/mensagem.md"
 
       - name: Fechar a issue se solicitado
-        if: github.event.comment.body == 'close issue'
+        if: github.event_name == 'issue_comment' && github.event.comment.body == 'close issue'
         uses: peter-evans/close-issue@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
