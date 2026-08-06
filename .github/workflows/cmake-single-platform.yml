@@ -17,7 +17,7 @@ jobs:
     - name: Install NASM, Build Tools and ISO Maker
       run: |
         sudo apt-get update
-        sudo apt-get install -y nasm gcc-multilib dosfstools mtools xorriso
+        sudo apt-get install -y nasm gcc-multilib cmake dosfstools mtools xorriso
 
     - name: Configure CMake
       run: |
@@ -29,6 +29,7 @@ jobs:
 
     - name: Generate boot.img
       run: |
+        mkdir -p build
         dd if=/dev/zero of=build/boot.img bs=1024 count=1440
         dd if=build/blue_game_engine of=build/boot.img conv=notrunc
 
@@ -49,43 +50,41 @@ jobs:
         # 3. Garante que a pasta /system/bin exista
         mkdir -p build/sysroot_temp/system/bin
         
-        # 4. Compila QUALQUER arquivo .c na raiz de /system/ para a pasta /system/bin (sem extensão)
+        # 4. Compila QUALQUER arquivo .c na raiz de /system/ para a pasta /system/bin
+        shopt -s nullglob
         if [ -d "build/sysroot_temp/system" ]; then
           for file in build/sysroot_temp/system/*.c; do
             if [ -f "$file" ]; then
-              # Pega o nome do arquivo sem caminho e sem extensão .c
               filename=$(basename "$file" .c)
-              
-              # Compila em 32-bit freestanding
               gcc -m32 -ffreestanding -nostdlib -O2 "$file" -o "build/sysroot_temp/system/bin/$filename"
-              
-              # Remove o fonte .c original
               rm -f "$file"
             fi
           done
         fi
         
-        # 5. Copia a estrutura pronta com todos os binários para dentro da system.img
+        # 5. Copia a estrutura pronta para dentro da system.img
         mcopy -i build/system.img -s build/sysroot_temp/* ::/
 
         # 6. Cria a pasta /dev na raiz da system.img
         mmd -i build/system.img ::/dev
 
-        # 7. Marcadores de /dev
-        echo -n "" | mcopy -i build/system.img - ::/dev/null
-        echo -n "" | mcopy -i build/system.img - ::/dev/zero
-        echo -n "" | mcopy -i build/system.img - ::/dev/full
-        echo -n "" | mcopy -i build/system.img - ::/dev/random
-        echo -n "" | mcopy -i build/system.img - ::/dev/urandom
-        echo -n "" | mcopy -i build/system.img - ::/dev/console
-        echo -n "" | mcopy -i build/system.img - ::/dev/tty
-        echo -n "" | mcopy -i build/system.img - ::/dev/fb0
-        echo -n "" | mcopy -i build/system.img - ::/dev/sda
-        echo -n "" | mcopy -i build/system.img - ::/dev/sda1
-        echo -n "" | mcopy -i build/system.img - ::/dev/fd0
-        echo -n "" | mcopy -i build/system.img - ::/dev/stdin
-        echo -n "" | mcopy -i build/system.img - ::/dev/stdout
-        echo -n "" | mcopy -i build/system.img - ::/dev/stderr
+        # 7. Marcadores de /dev (Usando arquivo temporário para evitar erros de pipe no mcopy)
+        touch build/empty_dev
+        mcopy -i build/system.img build/empty_dev ::/dev/null
+        mcopy -i build/system.img build/empty_dev ::/dev/zero
+        mcopy -i build/system.img build/empty_dev ::/dev/full
+        mcopy -i build/system.img build/empty_dev ::/dev/random
+        mcopy -i build/system.img build/empty_dev ::/dev/urandom
+        mcopy -i build/system.img build/empty_dev ::/dev/console
+        mcopy -i build/system.img build/empty_dev ::/dev/tty
+        mcopy -i build/system.img build/empty_dev ::/dev/fb0
+        mcopy -i build/system.img build/empty_dev ::/dev/sda
+        mcopy -i build/system.img build/empty_dev ::/dev/sda1
+        mcopy -i build/system.img build/empty_dev ::/dev/fd0
+        mcopy -i build/system.img build/empty_dev ::/dev/stdin
+        mcopy -i build/system.img build/empty_dev ::/dev/stdout
+        mcopy -i build/system.img build/empty_dev ::/dev/stderr
+        rm -f build/empty_dev
 
     - name: Generate ISO Image (blue_engine.iso)
       run: |
