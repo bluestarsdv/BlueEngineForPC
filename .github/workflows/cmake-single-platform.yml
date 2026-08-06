@@ -35,22 +35,25 @@ jobs:
 
     - name: Generate system.img (FAT File System)
       run: |
-        # 1. Cria a imagem zerada de 10MB e formata em FAT16
+        # 1. Cria imagem FAT16 de 10MB
         dd if=/dev/zero of=build/system.img bs=1M count=10
         mkfs.vfat -F 16 -n "SYSTEM" build/system.img
         
-        # 2. Prepara diretório temporário para a estrutura do sysroot
-        mkdir -p build/sysroot_temp
-        
-        # Copia todos os arquivos da pasta sysroot se existirem
+        # 2. Prepara a estrutura do diretório temporário
+        mkdir -p build/sysroot_temp/system/bin
+        mkdir -p build/sysroot_temp/data/config
+
+        # 3. Copia a pasta sysroot se ela existir no seu repositório
         if [ -d "sysroot" ]; then
           cp -r sysroot/* build/sysroot_temp/ 2>/dev/null || true
         fi
-        
-        # 3. Garante que a pasta /system/bin exista
-        mkdir -p build/sysroot_temp/system/bin
-        
-        # 4. Compila QUALQUER arquivo .c na raiz de /system/ para a pasta /system/bin
+
+        # 4. Garante a existência do arquivo user.cfg se não existir
+        if [ ! -f "build/sysroot_temp/data/config/user.cfg" ]; then
+          echo "theme=blue" > build/sysroot_temp/data/config/user.cfg
+        fi
+
+        # 5. Compila fontes .c em /system/ se houver
         shopt -s nullglob
         if [ -d "build/sysroot_temp/system" ]; then
           for file in build/sysroot_temp/system/*.c; do
@@ -61,41 +64,24 @@ jobs:
             fi
           done
         fi
-        
-        # 5. Copia a estrutura pronta para dentro da system.img
+
+        # 6. Copia todos os diretórios e arquivos recursivamente para o FAT
         mcopy -i build/system.img -s build/sysroot_temp/* ::/
 
-        # 6. Cria a pasta /dev na raiz da system.img
+        # 7. Cria /dev e nós básicos
         mmd -i build/system.img ::/dev
-
-        # 7. Marcadores de /dev (Usando arquivo temporário para evitar erros de pipe no mcopy)
         touch build/empty_dev
         mcopy -i build/system.img build/empty_dev ::/dev/null
         mcopy -i build/system.img build/empty_dev ::/dev/zero
-        mcopy -i build/system.img build/empty_dev ::/dev/full
-        mcopy -i build/system.img build/empty_dev ::/dev/random
-        mcopy -i build/system.img build/empty_dev ::/dev/urandom
-        mcopy -i build/system.img build/empty_dev ::/dev/console
-        mcopy -i build/system.img build/empty_dev ::/dev/tty
         mcopy -i build/system.img build/empty_dev ::/dev/fb0
-        mcopy -i build/system.img build/empty_dev ::/dev/sda
-        mcopy -i build/system.img build/empty_dev ::/dev/sda1
-        mcopy -i build/system.img build/empty_dev ::/dev/fd0
-        mcopy -i build/system.img build/empty_dev ::/dev/stdin
-        mcopy -i build/system.img build/empty_dev ::/dev/stdout
-        mcopy -i build/system.img build/empty_dev ::/dev/stderr
         rm -f build/empty_dev
 
     - name: Generate ISO Image (blue_engine.iso)
       run: |
-        # Prepara a pasta temporária da ISO
         mkdir -p build/iso_root
-        
-        # Copia boot.img e system.img para dentro do diretório raiz da ISO
         cp build/boot.img build/iso_root/boot.img
         cp build/system.img build/iso_root/system.img
         
-        # Empacota tudo em blue_engine.iso com boot El Torito
         xorriso -as mkisofs \
           -b boot.img \
           -no-emul-boot \
